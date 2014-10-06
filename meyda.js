@@ -208,6 +208,48 @@ var Meyda = function(audioContext,source,bufferSize){
 
 			return output;
 		},
+		"autocorrelation": function(bufferSize, m, decibelSpectrum) {
+			var spectrum = m.featureExtractors["amplitudeSpectrum"](bufferSize, m, decibelSpectrum);
+			var position = 0;
+			var output = new Float32Array(spectrum.length);
+			//console.log(spectrum);
+			for (var i = 0; i < spectrum.length-4; i += 4) {
+				position += 4;
+				var rin = 0;
+				var lv = new Float32Array(4);
+				for (var j = 0; j < (spectrum.length-position-4); j+=4) {
+					rin += 3;
+					lv[0] += (spectrum[rin]*spectrum[rin+0+position] + spectrum[rin+1]*spectrum[rin+1+position] + spectrum[rin+2]*spectrum[rin+2+position] + spectrum[rin+3]*spectrum[rin+3+position]);
+					lv[1] += (spectrum[rin]*spectrum[rin+1+position] + spectrum[rin+1]*spectrum[rin+2+position] + spectrum[rin+2]*spectrum[rin+3+position] + spectrum[rin+3]*spectrum[rin+4+position]);
+					//console.log("lv1",rin+4+position);
+					lv[2] += (spectrum[rin]*spectrum[rin+2+position] + spectrum[rin+1]*spectrum[rin+3+position] + spectrum[rin+2]*spectrum[rin+4+position] + spectrum[rin+3]*spectrum[rin+5+position]);
+					lv[3] += (spectrum[rin]*spectrum[rin+3+position] + spectrum[rin+1]*spectrum[rin+4+position] + spectrum[rin+2]*spectrum[rin+5+position] + spectrum[rin+3]*spectrum[rin+6+position]);
+				}
+				console.log("lv", lv);
+				var l = 0;
+				for (var k = 0; k < 4; k++) {
+					l++;
+					for (var m = rin; m < spectrum.length-(l+position); m++) {
+						lv[l] += spectrum[m]*spectrum[k+l+position];
+					}
+				}
+
+				for (var n = 0; n < 4; n++) {
+					output[position+n] = lv[n];
+				}
+			}
+			//finish last bins
+			for (var o = position; o < spectrum.length; o++) {
+				position++;
+				var p = 0;
+				for (var i=0;i<spectrum.length-position;i++) {
+					p += spectrum[i]*spectrum[i+position];
+				}
+				output[position] = p;
+			}
+
+			return output;
+		},
 		"mfcc": function(bufferSize, m, spectrum){
 			//used tutorial from http://practicalcryptography.com/miscellaneous/machine-learning/guide-mel-frequency-cepstral-coefficients-mfccs/
 			var powSpec = m.featureExtractors["powerSpectrum"](bufferSize, m, spectrum);
@@ -240,12 +282,12 @@ var Meyda = function(audioContext,source,bufferSize){
 			var filterBank = Array(numFilters);
 			for (var j = 0; j < filterBank.length; j++) {
 				//creating a two dimensional array of size numFiltes * (buffersize/2)+1 and pre-populating the arrays with 0s.
-				filterBank[j] = Array.apply(null, new Array((bufferSize/2)+1)).map(Number.prototype.valueOf,0); 
+				filterBank[j] = Array.apply(null, new Array((bufferSize/2)+1)).map(Number.prototype.valueOf,0);
 				for (var i = fftBinsOfFreq[j]; i < fftBinsOfFreq[j+1]; i++) {
 					filterBank[j][i] = (i - fftBinsOfFreq[j])/(fftBinsOfFreq[j+1]-fftBinsOfFreq[j]);
 				}
 				for (var i = fftBinsOfFreq[j+1]; i < fftBinsOfFreq[j+2]; i++) {
-					filterBank[j][i] = (fftBinsOfFreq[j+2]-i)/(fftBinsOfFreq[j+2]-fftBinsOfFreq[j+1]) 
+					filterBank[j][i] = (fftBinsOfFreq[j+2]-i)/(fftBinsOfFreq[j+2]-fftBinsOfFreq[j+1])
 				}
 			}
 
@@ -255,7 +297,7 @@ var Meyda = function(audioContext,source,bufferSize){
 					filterBank[i][j] = filterBank[i][j]*powSpec[i];
 					mfcc[i] += filterBank[i][j];
 				}
-				mfcc[i] = Math.log(mfcc[i]); 
+				mfcc[i] = Math.log(mfcc[i]);
 			}
 
 			for (var k = 0; k < mfcc.length; k++) {
