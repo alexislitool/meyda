@@ -9,21 +9,8 @@ var keep = (function () {
     };
 }());
 
-  // var ctx = new AudioContext();  audioContext
-  // var osc = ctx.createOscillator();   source
-  // var spn = ctx.createScriptProcessor();  createScriptProccessor
-  // osc.type = "square";
-  // osc.frequency.value = 440
-  // osc.connect(spn);  X
-  // spn.connect(ctx.destination);
-  // spn.onaudioprocess = function(x){ console.log("I got ",x);}
-  // osc.start();
-var globalMethod2 = function(audioContext, bufferSize){
+var globalMethod2 = function(audioContext, bufferSize, meyda){
 	setTimeout(function() {
-		console.log("ping : ", audioContext, " :: ", bufferSize);
-		var osc = audioContext.createOscillator();
-		osc.type = "square";
-		osc.frequency.value = 440
 		// window.spn = audioContext.createScriptProcessor(bufferSize,1,0);
 		window.spn = audioContext.createScriptProcessor();
 		window.spn.onaudioprocess = meyda.globalMethod;
@@ -39,7 +26,6 @@ var globalMethod2 = function(audioContext, bufferSize){
 
 var Meyda = function(audioContext,source,bufSize,callback){
 	this.source = source;
-	console.error(" >>> WE MADE THE THING");
 	//default buffer size
 	var bufferSize = bufSize ? bufSize : 256;
 
@@ -413,7 +399,7 @@ var Meyda = function(audioContext,source,bufSize,callback){
 			}
 
 			//create nodes
-			globalMethod2(audioContext, bufferSize);
+			globalMethod2(audioContext, bufferSize,self);
 			self.start = function(features) {
 				_featuresToExtract = features;
 				EXTRACTION_STARTED = true;
@@ -450,20 +436,7 @@ var Meyda = function(audioContext,source,bufSize,callback){
 			}
 
 			self.globalMethod = function(e) {
-				// console.log("MY THING RAN!!");
-
-				// console.error(" >>> ... a bazilion times called");
-				//this is to obtain the current amplitude spectrum
 				var inputData = e.inputBuffer.getChannelData(0);
-				if (window._) {
-					var wtf = _.reduce(inputData, function(memo, value){
-						return memo + value;
-					}, 0);
-					if (wtf) {
-						// console.error("SHIT JUST CHANGED!!! "+wtf);
-					}
-				}
-				// console.error(" wtf ", inputData);
 				self.signal = inputData;
 				var hannedSignal = hanning(self.signal);
 
