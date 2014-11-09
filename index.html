@@ -9,26 +9,30 @@
 	<link rel="stylesheet" type="text/css" href="styles.css">
 	<meta charset="UTF-8">
 </head>
-<body onLoad="init()">
+<body>
 	<h3>meyda</h3>
 	<h4>audio feature extraction library for the Web</h4>
+	<div onclick="preInit()">run preInit()</div>
+	<div onclick="init()">run init()</div>
 	<form id="featuresForm">
 
 	</form>
 	<div id="extraction">
-		<audio src="audio/noise.wav" id="tune" controls></audio><br><br>
+		<audio src="audio/guitar.mp3" id="tune" controls></audio><br><br>
 	</div>
 	<script>
-		var meyda;
-		var featuresToExtract = [];
-		var extractionInterval;
-		var output = [];
-		var count = 0;
+	  function preInit() {
+			window.meyda;
+			window.featuresToExtract = [];
+			window.extractionInterval;
+			window.output = [];
+			window.count = 0;
 
-		var tune = document.getElementById('tune');
-		tune.oncanplaythrough = function (e) {
-			tune.volume = 1.0;
-			console.log("audio loaded");
+			window.tune = document.getElementById('tune');
+			tune.oncanplaythrough = function (e) {
+				tune.volume = 1.0;
+				console.log("audio loaded");
+			}
 		}
 
 		// callback for mic position

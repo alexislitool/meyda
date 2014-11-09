@@ -1,6 +1,45 @@
 // Meyda Javascript DSP library
+var scriptNodes = {};
+var keep = (function () {
+    var nextNodeID = 1;
+    return function (node) {
+        node.id = node.id || (nextNodeID++);
+        scriptNodes[node.id] = node;
+        return node;
+    };
+}());
+
+  // var ctx = new AudioContext();  audioContext
+  // var osc = ctx.createOscillator();   source
+  // var spn = ctx.createScriptProcessor();  createScriptProccessor
+  // osc.type = "square";
+  // osc.frequency.value = 440
+  // osc.connect(spn);  X
+  // spn.connect(ctx.destination);
+  // spn.onaudioprocess = function(x){ console.log("I got ",x);}
+  // osc.start();
+var globalMethod2 = function(audioContext, bufferSize){
+	setTimeout(function() {
+		console.log("ping : ", audioContext, " :: ", bufferSize);
+		var osc = audioContext.createOscillator();
+		osc.type = "square";
+		osc.frequency.value = 440
+		// window.spn = audioContext.createScriptProcessor(bufferSize,1,0);
+		window.spn = audioContext.createScriptProcessor();
+		window.spn.onaudioprocess = meyda.globalMethod;
+
+		meyda.source.connect(window.spn, 0, 0);
+		window.spn.connect(audioContext.destination);
+		// osc.connect(window.spn);
+		// window.spn.connect(audioContext.destination);
+	}, 1000);
+		
+}
+
 
 var Meyda = function(audioContext,source,bufSize,callback){
+	this.source = source;
+	console.error(" >>> WE MADE THE THING");
 	//default buffer size
 	var bufferSize = bufSize ? bufSize : 256;
 
@@ -27,8 +66,8 @@ var Meyda = function(audioContext,source,bufSize,callback){
 	}
 
 	var hanning = function(sig){
-		var hann = Float32Array(sig.length);
-		var hanned = Float32Array(sig.length);
+		var hann = new Float32Array(sig.length);
+		var hanned = new Float32Array(sig.length);
 		for (var i = 0; i < sig.length; i++) {
 			//According to the R documentation http://rgm.ogalab.net/RGM/R_rdfile?f=GENEAread/man/hanning.window.Rd&d=R_CC
 			hann[i] = 0.5 - 0.5*Math.cos(2*Math.PI*i/(sig.length-1));
@@ -220,9 +259,9 @@ var Meyda = function(audioContext,source,bufSize,callback){
 					return powerSpectrum;
 				},
 				"loudness": function(bufferSize, m){
-					var barkScale = Float32Array(m.ampSpectrum.length);
+					var barkScale = new Float32Array(m.ampSpectrum.length);
 					var NUM_BARK_BANDS = 24;
-					var specific = Float32Array(NUM_BARK_BANDS);
+					var specific = new Float32Array(NUM_BARK_BANDS);
 					var tot = 0;
 					var normalisedSpectrum = m.ampSpectrum;
 					var bbLimits = new Int32Array(NUM_BARK_BANDS+1);
@@ -308,8 +347,8 @@ var Meyda = function(audioContext,source,bufSize,callback){
 						return freqValue;
 					};
 					var numFilters = 26; //26 filters is standard
-					var melValues = Float32Array(numFilters+2); //the +2 is the upper and lower limits
-					var melValuesInFreq = Float32Array(numFilters+2);
+					var melValues = new Float32Array(numFilters+2); //the +2 is the upper and lower limits
+					var melValuesInFreq = new Float32Array(numFilters+2);
 					//Generate limits in Hz - from 0 to the nyquist.
 					var lowerLimitFreq = 0;
 					var upperLimitFreq = audioContext.sampleRate/2;
@@ -374,11 +413,57 @@ var Meyda = function(audioContext,source,bufSize,callback){
 			}
 
 			//create nodes
-			window.spn = audioContext.createScriptProcessor(bufferSize,1,0);
+			globalMethod2(audioContext, bufferSize);
+			self.start = function(features) {
+				_featuresToExtract = features;
+				EXTRACTION_STARTED = true;
+			}
 
-			window.spn.onaudioprocess = function(e) {
+			self.stop = function() {
+				EXTRACTION_STARTED = false;
+			}
+
+			self.audioContext = audioContext;
+
+			self.get = function(feature) {
+				if(typeof feature === "object"){
+					var results = {};
+					for (var x = 0; x < feature.length; x++){
+						try{
+							if (self.signal && self.complexSpectrum && self.ampSpectrum){
+								results[feature[x]] = (self.featureExtractors[feature[x]](bufferSize, self));
+							// } else {
+							// 	console.log("passed");
+							}
+						} catch (e){
+							console.error(e);
+						}
+					}
+					return results;
+				}
+				else if (typeof feature === "string"){
+					return self.featureExtractors[feature](bufferSize, self);
+				}
+				else{
+					throw "Invalid Feature Format";
+				}
+			}
+
+			self.globalMethod = function(e) {
+				// console.log("MY THING RAN!!");
+
+				// console.error(" >>> ... a bazilion times called");
 				//this is to obtain the current amplitude spectrum
 				var inputData = e.inputBuffer.getChannelData(0);
+				if (window._) {
+					var wtf = _.reduce(inputData, function(memo, value){
+						return memo + value;
+					}, 0);
+					if (wtf) {
+						// console.error("SHIT JUST CHANGED!!! "+wtf);
+					}
+				}
+				// console.error(" wtf ", inputData);
 				self.signal = inputData;
 				var hannedSignal = hanning(self.signal);
 
@@ -405,37 +490,6 @@ var Meyda = function(audioContext,source,bufSize,callback){
 
 			}
 
-			self.start = function(features) {
-				_featuresToExtract = features;
-				EXTRACTION_STARTED = true;
-			}
-
-			self.stop = function() {
-				EXTRACTION_STARTED = false;
-			}
-
-			self.audioContext = audioContext;
-
-			self.get = function(feature) {
-				if(typeof feature === "object"){
-					var results = {};
-					for (var x = 0; x < feature.length; x++){
-						try{
-							results[feature[x]] = (self.featureExtractors[feature[x]](bufferSize, self));
-						} catch (e){
-							console.error(e);
-						}
-					}
-					return results;
-				}
-				else if (typeof feature === "string"){
-					return self.featureExtractors[feature](bufferSize, self);
-				}
-				else{
-					throw "Invalid Feature Format";
-				}
-			}
-			source.connect(window.spn, 0, 0);
 			return self;
 	}
 	else {
